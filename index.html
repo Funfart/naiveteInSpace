@@ -153,31 +153,46 @@ async function startIntro(){
  setTimeout(()=>{if(!introDone){introDone=true;fadeOut();}},3000);
 }
 
-/* ================= GRAVITY ================= */
+/* ================= GALAXY FIELD ================= */
+function galaxyInfluence(o){
+ let dx=o.x-CX, dy=o.y-CY;
+ let d=Math.hypot(dx,dy)+0.1;
+
+ // gentle slow-down (NOT push)
+ let drag = 0.0008 * d;
+ o.vx -= o.vx * drag;
+ o.vy -= o.vy * drag;
+
+ // slight spiral motion
+ let tx = -dy/d, ty = dx/d;
+ o.vx += tx * 0.002;
+ o.vy += ty * 0.002;
+}
+
+/* ================= ORBIT WELLS ================= */
 let wells=[];
 canvas.addEventListener("pointerdown",e=>{
  let r=canvas.getBoundingClientRect();
  wells.push({x:e.clientX-r.left,y:e.clientY-r.top,life:1});
 
- // impulse burst
+ // energy burst
  floaters.forEach(f=>{
-   f.vx+=(Math.random()-0.5)*2;
-   f.vy+=(Math.random()-0.5)*2;
+   f.vx+=(Math.random()-0.5)*1.5;
+   f.vy+=(Math.random()-0.5)*1.5;
  });
 });
 
-/* ================= ORBIT ================= */
 function applyOrbit(o,w){
  let dx=w.x-o.x, dy=w.y-o.y;
  let d=Math.hypot(dx,dy)+0.1;
 
- let pull=0.5/d;
+ let pull=0.3/d;
  o.vx+=dx/d*pull;
  o.vy+=dy/d*pull;
 
  let tx=-dy/d, ty=dx/d;
- o.vx+=tx*(0.8/d);
- o.vy+=ty*(0.8/d);
+ o.vx+=tx*(0.5/d);
+ o.vy+=ty*(0.5/d);
 }
 
 /* ================= FLOATERS ================= */
@@ -189,38 +204,45 @@ class Floater{
  }
  reset(){
   let a=Math.random()*Math.PI*2;
-  let r=Math.random()*R;
+  let r=Math.random()*R*0.8;
   this.x=CX+Math.cos(a)*r;
   this.y=CY+Math.sin(a)*r;
-  this.vx=(Math.random()-0.5)*1.2;
-  this.vy=(Math.random()-0.5)*1.2;
+  this.vx=(Math.random()-0.5)*1;
+  this.vy=(Math.random()-0.5)*1;
   this.size=(30+Math.random()*40)*this.depth;
  }
  update(){
   wells.forEach(w=>applyOrbit(this,w));
+  galaxyInfluence(this);
 
-  // constant drift noise
+  // perpetual drift noise
   this.vx+=Math.sin(time+this.x*0.01)*0.01;
   this.vy+=Math.cos(time+this.y*0.01)*0.01;
 
   this.x+=this.vx;
   this.y+=this.vy;
 
-  // bounce boundary
+  // proper circular bounce
   let dx=this.x-CX, dy=this.y-CY;
   let d=Math.hypot(dx,dy);
-  if(d>R-this.size/2){
-   let nx=dx/d, ny=dy/d;
-   this.vx-=2*(this.vx*nx)*nx;
-   this.vy-=2*(this.vy*ny)*ny;
+  let max=R-this.size/2;
+
+  if(d>max){
+    let nx=dx/d, ny=dy/d;
+
+    this.x = CX + nx*max;
+    this.y = CY + ny*max;
+
+    let dot=this.vx*nx + this.vy*ny;
+    this.vx -= 2*dot*nx;
+    this.vy -= 2*dot*ny;
   }
 
-  // VERY LIGHT damping (never stops)
-  this.vx*=0.999;
-  this.vy*=0.999;
+  this.vx*=0.998;
+  this.vy*=0.998;
  }
  draw(){
-  ctx.globalAlpha=0.4+this.depth*0.6;
+  ctx.globalAlpha=0.5+this.depth*0.5;
   ctx.drawImage(this.img,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
   ctx.globalAlpha=1;
  }
@@ -234,11 +256,12 @@ class Particle{
   let r=Math.random()*R;
   this.x=CX+Math.cos(a)*r;
   this.y=CY+Math.sin(a)*r;
-  this.vx=(Math.random()-0.5)*1.5;
-  this.vy=(Math.random()-0.5)*1.5;
+  this.vx=(Math.random()-0.5)*1.2;
+  this.vy=(Math.random()-0.5)*1.2;
  }
  update(){
   wells.forEach(w=>applyOrbit(this,w));
+  galaxyInfluence(this);
 
   this.vx+=Math.sin(time+this.x*0.01)*0.01;
   this.vy+=Math.cos(time+this.y*0.01)*0.01;
@@ -251,8 +274,8 @@ class Particle{
    this.vy*=-1;
   }
 
-  this.vx*=0.999;
-  this.vy*=0.999;
+  this.vx*=0.998;
+  this.vy*=0.998;
  }
  draw(){
   ctx.fillStyle="#fff";
@@ -265,6 +288,7 @@ let obj={
  x:0,y:0,vx:1,vy:-0.8,size:200,
  update(){
   wells.forEach(w=>applyOrbit(this,w));
+  galaxyInfluence(this);
 
   this.vx+=Math.sin(time)*0.02;
   this.vy+=Math.cos(time)*0.02;
@@ -277,39 +301,25 @@ let obj={
    this.vy*=-1;
   }
 
-  this.vx*=0.999;
-  this.vy*=0.999;
+  this.vx*=0.998;
+  this.vy*=0.998;
  },
  draw(){
   ctx.drawImage(objImg,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
  }
 };
 
-/* ================= NEBULA + GALAXY ================= */
-function drawNebula(){
+/* ================= GALAXY DRAW ================= */
+function drawGalaxy(){
  ctx.globalCompositeOperation="lighter";
 
- for(let i=0;i<3;i++){
-  let g=ctx.createRadialGradient(
-   CX+Math.sin(time*0.5+i)*60,
-   CY+Math.cos(time*0.4+i)*60,
-   20,
-   CX,CY,R
-  );
-  g.addColorStop(0,"rgba(120,0,255,0.2)");
-  g.addColorStop(0.5,"rgba(0,200,255,0.15)");
-  g.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=g;
-  ctx.fillRect(0,0,W,H);
- }
-
- // spiral galaxy arms
  for(let i=0;i<200;i++){
   let angle=i*0.15 + time*0.2;
-  let radius=i*1.5;
+  let radius=i*1.2;
   let x=CX+Math.cos(angle)*radius;
   let y=CY+Math.sin(angle)*radius;
-  ctx.fillStyle="rgba(255,255,255,0.2)";
+
+  ctx.fillStyle="rgba(255,255,255,0.15)";
   ctx.fillRect(x,y,1,1);
  }
 
@@ -331,14 +341,16 @@ function loop(){
 
  ctx.drawImage(bg,0,0,W,H);
 
+ // ⭐ galaxy FIRST (background layer)
+ drawGalaxy();
+
+ // ⭐ floaters + object ABOVE galaxy
  floaters.sort((a,b)=>a.depth-b.depth);
  floaters.forEach(f=>{f.update();f.draw();});
 
  obj.update(); obj.draw();
 
  particles.forEach(p=>{p.update();p.draw();});
-
- drawNebula();
 
  ctx.restore();
 
@@ -352,7 +364,11 @@ function loop(){
 function init(){
  resize();
 
- obj.x=CX; obj.y=CY;
+ obj.x=CX;
+ obj.y=CY;
+
+ floaters=[];
+ particles=[];
 
  for(let i=0;i<6;i++){
   floaters.push(new Floater(floaterImgs[i%4],0.4));
