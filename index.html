@@ -273,66 +273,54 @@ function loop(){
  requestAnimationFrame(loop);
 }
 
-// ===== INTRO FIXED =====
-// ===== INTRO (FULLY FIXED) =====
+// ===== INTRO (FINAL - CLEAN & RELIABLE) =====
 const introContainer = document.getElementById("intro");
 const introImgEl = document.getElementById("introGif");
 
-let introShown = false;
-let introStartTime = 0;
+// FORCE visible immediately
+introContainer.style.display = "block";
 
-function startApp(){
-  introContainer.style.display = "none";
-  init();
-}
-
-function showIntroWhenReady(){
-  introStartTime = performance.now();
-  introContainer.style.display = "block";
-
-  // Ensure at least 3 seconds AFTER visible render
-  function waitMinimumTime(){
-    let elapsed = performance.now() - introStartTime;
-    let remaining = Math.max(0, 3000 - elapsed);
-    setTimeout(startApp, remaining);
-  }
-
-  waitMinimumTime();
-}
-
-// Robust image readiness check
-function loadIntro(){
+// Load intro GIF (with retry for IPFS)
+function loadIntroWithRetry(src, retries = 3){
   return new Promise((resolve)=>{
-    if (introImgEl.complete && introImgEl.naturalWidth > 0){
-      resolve();
-    } else {
-      introImgEl.onload = resolve;
-      introImgEl.onerror = resolve; // fallback anyway
+    function attempt(n){
+      introImgEl.src = src + "?t=" + Date.now(); // cache-buster
+
+      introImgEl.onload = () => resolve(true);
+      introImgEl.onerror = () => {
+        if(n > 0){
+          setTimeout(()=>attempt(n-1), 500);
+        } else {
+          console.warn("Intro failed to load, continuing...");
+          resolve(false);
+        }
+      };
     }
+    attempt(retries);
   });
 }
 
-// Extra decode safety (modern browsers)
-async function prepareIntro(){
-  await loadIntro();
+async function startIntroFlow(){
+  // LOAD IMAGE FIRST
+  await loadIntroWithRetry(IPFS + CIDS.intro);
 
-  if (introImgEl.decode){
-    try { await introImgEl.decode(); }
-    catch(e){}
+  // Ensure decode (if supported)
+  if(introImgEl.decode){
+    try { await introImgEl.decode(); } catch(e){}
   }
 
-  // Small delay to ensure paint
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      showIntroWhenReady();
-    });
-  });
+  // FORCE PAINT (critical)
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+
+  // NOW START TIMER (after visible)
+  setTimeout(()=>{
+    introContainer.style.display = "none";
+    init();
+  }, 3000);
 }
 
-// INIT FLOW
-window.addEventListener("load", ()=>{
-  prepareIntro();
-});
+// Start immediately (no window.onload delay!)
+startIntroFlow();
 </script>
 </body>
 </html>
