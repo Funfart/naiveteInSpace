@@ -176,7 +176,7 @@ class Particle{
 
 // ===== MAIN OBJECT =====
 let obj={
- x:0,y:0,vx:0.3,vy:-0.2,size:80,
+ x:0,y:0,vx:0.3,vy:-0.2,size:200,
  update(){
   wells.forEach(w=>{
    let dx=w.x-this.x, dy=w.y-this.y;
@@ -269,7 +269,7 @@ window.onload=()=>{
  setTimeout(()=>{
   document.getElementById("intro").style.display="none";
   init();
- },3000);
+ },1500);
 };
 </script>
 </body>
