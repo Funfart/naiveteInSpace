@@ -154,19 +154,22 @@ async function startIntro(){
 }
 
 /* ================= GALAXY INFLUENCE ================= */
-function galaxyInfluence(o){
- let dx=o.x-CX, dy=o.y-CY;
- let d=Math.hypot(dx,dy)+0.1;
+function galaxyInfluence(o, strength=1){
+  let dx=o.x-CX, dy=o.y-CY;
+  let d=Math.hypot(dx,dy)+0.001;
 
- // soft slow (never stops)
- let slow = 0.0002 * d;
- o.vx *= (1 - slow);
- o.vy *= (1 - slow);
+  // ONLY tangential swirl (no radial pull = no clustering)
+  let tx = -dy/d;
+  let ty = dx/d;
 
- // swirl
- let tx = -dy/d, ty = dx/d;
- o.vx += tx * 0.003;
- o.vy += ty * 0.003;
+  let swirl = 0.003 * strength;
+
+  o.vx += tx * swirl;
+  o.vy += ty * swirl;
+
+  // very soft damping (prevents runaway but NOT freezing)
+  o.vx *= (1 - 0.0005);
+  o.vy *= (1 - 0.0005);
 }
 
 /* ================= WELLS ================= */
