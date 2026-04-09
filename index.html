@@ -11,7 +11,20 @@ html,body {
   display:flex; justify-content:center; align-items:center;
   height:100vh; overflow:hidden;
 }
+#globeWrapper {
+  position:relative;
+  width:90vw;
+  max-width:500px;
+  aspect-ratio:1/1;
+  border-radius:50%;
+  overflow:hidden;
+}
 
+canvas {
+  width:100%;
+  height:100%;
+  display:block;
+}
 #intro {
   position:absolute;
   width:100%;
@@ -50,10 +63,13 @@ html,body {
 </style>
 </head>
 
-<body>
-<div id="intro">
-  <img id="introGif">
-  <div id="skipHint">TAP TO SKIP</div>
+<div id="globeWrapper">
+  <canvas id="c"></canvas>
+
+  <div id="intro">
+    <img id="introGif">
+    <div id="skipHint">TAP TO SKIP</div>
+  </div>
 </div>
 
 <script>
@@ -76,6 +92,7 @@ const CIDS={
 
 // ===== CANVAS =====
 const canvas=document.getElementById("c");
+if(!canvas) throw new Error("Canvas #c not found in DOM");
 const ctx=canvas.getContext("2d");
 let W,H,CX,CY,R,time=0;
 
