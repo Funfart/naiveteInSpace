@@ -79,10 +79,6 @@ const floaterImgs=CIDS.floaters.map(img);
 const introImg=document.getElementById("introGif");
 introImg.src=IPFS+CIDS.intro;
 
-// FIXED intro timing
-let introReady=false;
-introImg.onload=()=>{ introReady=true; };
-
 // ===== GRAVITY WELLS =====
 let wells=[];
 canvas.addEventListener("pointerdown",e=>{
