@@ -274,19 +274,65 @@ function loop(){
 }
 
 // ===== INTRO FIXED =====
-window.onload=()=>{
- let start=()=>{
-  document.getElementById("intro").style.display="none";
-  init();
- };
+// ===== INTRO (FULLY FIXED) =====
+const introContainer = document.getElementById("intro");
+const introImgEl = document.getElementById("introGif");
 
- if(introReady){
-  setTimeout(start,3000);
- } else {
-  introImg.onload=()=>setTimeout(start,3000);
-  setTimeout(start,3500); // fallback
- }
-};
+let introShown = false;
+let introStartTime = 0;
+
+function startApp(){
+  introContainer.style.display = "none";
+  init();
+}
+
+function showIntroWhenReady(){
+  introStartTime = performance.now();
+  introContainer.style.display = "block";
+
+  // Ensure at least 3 seconds AFTER visible render
+  function waitMinimumTime(){
+    let elapsed = performance.now() - introStartTime;
+    let remaining = Math.max(0, 3000 - elapsed);
+    setTimeout(startApp, remaining);
+  }
+
+  waitMinimumTime();
+}
+
+// Robust image readiness check
+function loadIntro(){
+  return new Promise((resolve)=>{
+    if (introImgEl.complete && introImgEl.naturalWidth > 0){
+      resolve();
+    } else {
+      introImgEl.onload = resolve;
+      introImgEl.onerror = resolve; // fallback anyway
+    }
+  });
+}
+
+// Extra decode safety (modern browsers)
+async function prepareIntro(){
+  await loadIntro();
+
+  if (introImgEl.decode){
+    try { await introImgEl.decode(); }
+    catch(e){}
+  }
+
+  // Small delay to ensure paint
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      showIntroWhenReady();
+    });
+  });
+}
+
+// INIT FLOW
+window.addEventListener("load", ()=>{
+  prepareIntro();
+});
 </script>
 </body>
 </html>
