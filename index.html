@@ -17,23 +17,25 @@ html,body {
   aspect-ratio:1/1;
   border-radius:50%;
   overflow:hidden;
-  border:10px solid rgba(255,255,255,0.3);
 }
-canvas { width:100%; height:100%; display:block; }
+canvas { width:100%; height:100%; }
 
 #intro {
-  position:absolute; width:100%; height:100%;
-  background:#000; z-index:5;
+  position:absolute;
+  width:100%; height:100%;
+  background:#000;
+  z-index:10;
 }
 #intro img {
-  width:100%; height:100%; object-fit:cover;
+  width:100%; height:100%;
+  object-fit:cover;
 }
 </style>
 </head>
 
 <body>
 <div id="globeWrapper">
-  <canvas id="globeCanvas"></canvas>
+  <canvas id="c"></canvas>
   <div id="intro"><img id="introGif"></div>
 </div>
 
@@ -56,12 +58,13 @@ const CIDS={
 };
 
 // ===== CANVAS =====
-const canvas=document.getElementById("globeCanvas");
+const canvas=document.getElementById("c");
 const ctx=canvas.getContext("2d");
-let W,H,CX,CY,R;
+let W,H,CX,CY,R,time=0;
 
 function resize(){
- W=canvas.clientWidth; H=canvas.clientHeight;
+ W=canvas.clientWidth;
+ H=canvas.clientHeight;
  canvas.width=W; canvas.height=H;
  CX=W/2; CY=H/2; R=W/2-10;
 }
@@ -71,27 +74,48 @@ window.addEventListener("resize",resize);
 function img(cid){let i=new Image();i.src=IPFS+cid;return i;}
 const bg=img(CIDS.bg);
 const objImg=img(CIDS.obj);
-const intro=document.getElementById("introGif");
-intro.src=IPFS+CIDS.intro;
 const floaterImgs=CIDS.floaters.map(img);
+
+const introImg=document.getElementById("introGif");
+introImg.src=IPFS+CIDS.intro;
+
+// FIXED intro timing
+let introReady=false;
+introImg.onload=()=>{ introReady=true; };
 
 // ===== GRAVITY WELLS =====
 let wells=[];
 canvas.addEventListener("pointerdown",e=>{
- let rect=canvas.getBoundingClientRect();
+ let r=canvas.getBoundingClientRect();
  wells.push({
-  x:e.clientX-rect.left,
-  y:e.clientY-rect.top,
-  strength:2,
+  x:e.clientX-r.left,
+  y:e.clientY-r.top,
   life:1
  });
 });
 
-// ===== FLOATERS (PARALLAX) =====
+// ===== ORBIT FORCE =====
+function applyOrbit(obj,w){
+ let dx=w.x-obj.x, dy=w.y-obj.y;
+ let d=Math.hypot(dx,dy)+0.1;
+
+ // pull
+ let pull=0.3/d;
+ obj.vx+=dx/d*pull;
+ obj.vy+=dy/d*pull;
+
+ // tangent (orbit)
+ let tx=-dy/d, ty=dx/d;
+ let orbit=0.4/d;
+ obj.vx+=tx*orbit;
+ obj.vy+=ty*orbit;
+}
+
+// ===== FLOATERS =====
 class Floater{
  constructor(img,depth){
   this.img=img;
-  this.depth=depth; // 0.3 back, 1 front
+  this.depth=depth;
   this.reset();
  }
  reset(){
@@ -99,38 +123,30 @@ class Floater{
   let r=Math.random()*R;
   this.x=CX+Math.cos(a)*r;
   this.y=CY+Math.sin(a)*r;
-  this.vx=(Math.random()-0.5)*0.4*this.depth;
-  this.vy=(Math.random()-0.5)*0.4*this.depth;
+  this.vx=(Math.random()-0.5)*0.6;
+  this.vy=(Math.random()-0.5)*0.6;
   this.size=(30+Math.random()*40)*this.depth;
  }
  update(){
-  // gravity wells
-  wells.forEach(w=>{
-   let dx=w.x-this.x, dy=w.y-this.y;
-   let d=Math.hypot(dx,dy)+0.1;
-   let f=w.strength/d;
-   this.vx+=dx/d*f;
-   this.vy+=dy/d*f;
-  });
+  wells.forEach(w=>applyOrbit(this,w));
+
+  // drift noise
+  this.vx+=Math.sin(time+this.x*0.01)*0.002;
+  this.vy+=Math.cos(time+this.y*0.01)*0.002;
 
   this.x+=this.vx;
   this.y+=this.vy;
 
-  // boundary
   let dx=this.x-CX, dy=this.y-CY;
-  let d=Math.hypot(dx,dy);
-  let max=R-this.size/2;
-  if(d>max){
-   let nx=dx/d, ny=dy/d;
-   this.vx-=2*(this.vx*nx)*nx;
-   this.vy-=2*(this.vy*ny)*ny;
+  if(Math.hypot(dx,dy)>R-this.size/2){
+   this.vx*=-1; this.vy*=-1;
   }
 
   this.vx*=0.995;
   this.vy*=0.995;
  }
  draw(){
-  ctx.globalAlpha=0.6+this.depth*0.4;
+  ctx.globalAlpha=0.5+this.depth*0.5;
   ctx.drawImage(this.img,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
   ctx.globalAlpha=1;
  }
@@ -144,23 +160,16 @@ class Particle{
   let r=Math.random()*R;
   this.x=CX+Math.cos(a)*r;
   this.y=CY+Math.sin(a)*r;
-  this.vx=(Math.random()-0.5)*0.6;
-  this.vy=(Math.random()-0.5)*0.6;
+  this.vx=(Math.random()-0.5);
+  this.vy=(Math.random()-0.5);
  }
  update(){
-  wells.forEach(w=>{
-   let dx=w.x-this.x, dy=w.y-this.y;
-   let d=Math.hypot(dx,dy)+0.1;
-   let f=1.5/d;
-   this.vx+=dx/d*f;
-   this.vy+=dy/d*f;
-  });
+  wells.forEach(w=>applyOrbit(this,w));
 
   this.x+=this.vx;
   this.y+=this.vy;
 
-  let dx=this.x-CX, dy=this.y-CY;
-  if(Math.hypot(dx,dy)>R){
+  if(Math.hypot(this.x-CX,this.y-CY)>R){
    this.vx*=-1; this.vy*=-1;
   }
 
@@ -168,35 +177,24 @@ class Particle{
  }
  draw(){
   ctx.fillStyle="#fff";
-  ctx.beginPath();
-  ctx.arc(this.x,this.y,1.5,0,Math.PI*2);
-  ctx.fill();
+  ctx.fillRect(this.x,this.y,2,2);
  }
 }
 
 // ===== MAIN OBJECT =====
 let obj={
- x:0,y:0,vx:0.3,vy:-0.2,size:200,
+ x:0,y:0,vx:0.4,vy:-0.3,size:200,
  update(){
-  wells.forEach(w=>{
-   let dx=w.x-this.x, dy=w.y-this.y;
-   let d=Math.hypot(dx,dy)+0.1;
-   let f=2/d;
-   this.vx+=dx/d*f;
-   this.vy+=dy/d*f;
-  });
+  wells.forEach(w=>applyOrbit(this,w));
+
+  this.vx+=Math.sin(time)*0.002;
+  this.vy+=Math.cos(time)*0.002;
 
   this.x+=this.vx;
   this.y+=this.vy;
 
-  let dx=this.x-CX, dy=this.y-CY;
-  let d=Math.hypot(dx,dy);
-  let max=R-this.size/2;
-
-  if(d>max){
-   let nx=dx/d, ny=dy/d;
-   this.vx-=2*(this.vx*nx)*nx;
-   this.vy-=2*(this.vy*ny)*ny;
+  if(Math.hypot(this.x-CX,this.y-CY)>R-this.size/2){
+   this.vx*=-1; this.vy*=-1;
   }
 
   this.vx*=0.995;
@@ -207,13 +205,25 @@ let obj={
  }
 };
 
-// ===== NEBULA =====
+// ===== NEBULA (ANIMATED SHADER) =====
 function drawNebula(){
- let g=ctx.createRadialGradient(CX,CY,10,CX,CY,R);
- g.addColorStop(0,"rgba(100,0,200,0.15)");
+ ctx.globalCompositeOperation="lighter";
+
+ let g=ctx.createRadialGradient(
+  CX+Math.sin(time*0.5)*50,
+  CY+Math.cos(time*0.4)*50,
+  20,
+  CX,CY,R
+ );
+
+ g.addColorStop(0,"rgba(120,0,255,0.15)");
+ g.addColorStop(0.5,"rgba(0,200,255,0.1)");
  g.addColorStop(1,"rgba(0,0,0,0)");
+
  ctx.fillStyle=g;
  ctx.fillRect(0,0,W,H);
+
+ ctx.globalCompositeOperation="source-over";
 }
 
 // ===== INIT =====
@@ -223,11 +233,10 @@ function init(){
 
  obj.x=CX; obj.y=CY;
 
- // parallax layers
- for(let i=0;i<8;i++){
-  floaters.push(new Floater(floaterImgs[i%4],0.4)); // back
-  floaters.push(new Floater(floaterImgs[i%4],0.7)); // mid
-  floaters.push(new Floater(floaterImgs[i%4],1.1)); // front
+ for(let i=0;i<6;i++){
+  floaters.push(new Floater(floaterImgs[i%4],0.4));
+  floaters.push(new Floater(floaterImgs[i%4],0.8));
+  floaters.push(new Floater(floaterImgs[i%4],1.2));
  }
 
  for(let i=0;i<PARTICLES;i++) particles.push(new Particle());
@@ -237,6 +246,8 @@ function init(){
 
 // ===== LOOP =====
 function loop(){
+ time+=0.01;
+
  ctx.clearRect(0,0,W,H);
 
  ctx.save();
@@ -246,7 +257,6 @@ function loop(){
 
  ctx.drawImage(bg,0,0,W,H);
 
- // parallax
  floaters.sort((a,b)=>a.depth-b.depth);
  floaters.forEach(f=>{f.update();f.draw();});
 
@@ -257,19 +267,25 @@ function loop(){
 
  ctx.restore();
 
- // fade wells
  wells.forEach(w=>w.life-=0.01);
  wells=wells.filter(w=>w.life>0);
 
  requestAnimationFrame(loop);
 }
 
-// ===== INTRO =====
+// ===== INTRO FIXED =====
 window.onload=()=>{
- setTimeout(()=>{
+ let start=()=>{
   document.getElementById("intro").style.display="none";
   init();
- },1500);
+ };
+
+ if(introReady){
+  setTimeout(start,3000);
+ } else {
+  introImg.onload=()=>setTimeout(start,3000);
+  setTimeout(start,3500); // fallback
+ }
 };
 </script>
 </body>
