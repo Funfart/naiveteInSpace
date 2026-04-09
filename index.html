@@ -11,27 +11,8 @@ html,body {
   display:flex; justify-content:center; align-items:center;
   height:100vh; overflow:hidden;
 }
-#globeWrapper {
-  position:relative;
-  width:90vw; max-width:500px;
-  aspect-ratio:1/1;
-  border-radius:50%;
-  overflow:hidden;
-}
-canvas { width:100%; height:100%; }
 
 #intro {
-  position:absolute;
-  width:100%; height:100%;
-  background:#000;
-  z-index:10;
-}
-#intro img {
-  width:100%; height:100%;
-  object-fit:cover;
-}
-
-  #intro {
   position:absolute;
   width:100%;
   height:100%;
@@ -310,28 +291,51 @@ function loop(){
 }
 
 // ===== FADE CONTROL =====
+const introContainer = document.getElementById("intro");
+const introImgEl = document.getElementById("introGif");
+
+let introSkipped = false;
+let introDone = false;
+let nebulaAlpha = 0;
+
+// ===== LOAD INTRO SAFE =====
+function loadIntro(){
+  return new Promise((resolve)=>{
+    introImgEl.src = IPFS + CIDS.intro + "?t=" + Date.now();
+
+    introImgEl.onload = () => resolve();
+    introImgEl.onerror = () => resolve();
+  });
+}
+
+// ===== FADE IN =====
 function fadeIn(){
   introContainer.classList.add("show");
 }
 
+// ===== FADE OUT =====
 function fadeOut(){
   introContainer.classList.add("fadeOut");
+
   setTimeout(()=>{
     introContainer.style.display="none";
     morphToNebula();
   },1200);
 }
 
-// ===== NEBULA MORPH START =====
+// ===== MORPH INTO NEBULA =====
 function morphToNebula(){
-  // soft initialization instead of hard cut
   nebulaAlpha = 0;
+
   let fade = setInterval(()=>{
     nebulaAlpha += 0.02;
-    if(nebulaAlpha >= 1) clearInterval(fade);
+    if(nebulaAlpha >= 1){
+      nebulaAlpha = 1;
+      clearInterval(fade);
+    }
   },16);
 
-  init(); // start main engine
+  init();
 }
 
 // ===== SKIP =====
@@ -342,16 +346,14 @@ function skipIntro(){
   fadeOut();
 }
 
-// Tap anywhere to skip
 introContainer.addEventListener("pointerdown", skipIntro);
 
-// ===== MAIN INTRO FLOW =====
+// ===== MAIN FLOW =====
 async function startIntro(){
   introContainer.style.display="block";
 
   await loadIntro();
 
-  // ensure decode (smooth render)
   if(introImgEl.decode){
     try { await introImgEl.decode(); } catch(e){}
   }
@@ -360,7 +362,6 @@ async function startIntro(){
     fadeIn();
   });
 
-  // auto exit after 3s unless skipped
   setTimeout(()=>{
     if(!introSkipped){
       introDone = true;
@@ -369,7 +370,6 @@ async function startIntro(){
   },3000);
 }
 
-// START IMMEDIATELY
 startIntro();
 </script>
 </body>
