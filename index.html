@@ -162,14 +162,14 @@ function galaxyInfluence(o, strength=1){
   let tx = -dy/d;
   let ty = dx/d;
 
-  let swirl = 0.003 * strength;
+  let swirl = 0.002 * strength;
 
   o.vx += tx * swirl;
   o.vy += ty * swirl;
 
   // very soft damping (prevents runaway but NOT freezing)
-  o.vx *= (1 - 0.0005);
-  o.vy *= (1 - 0.0005);
+  o.vx *= (1 - 0.0004);
+  o.vy *= (1 - 0.0004);
 }
 
 /* ================= WELLS ================= */
