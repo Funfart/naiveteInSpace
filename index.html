@@ -51,7 +51,7 @@ canvas { width:100%; height:100%; display:block; }
 
 <script>
 // ================= CONFIG =================
-const PARTICLE_COUNT = 50;
+const PARTICLE_COUNT = 12;
 const SWIPE_FORCE = 2.5;
 const ZERO_GRAVITY = 0.0;
 
@@ -177,7 +177,7 @@ let particles = [];
 
 // ================= OBJECT =================
 let obj = {
-  x:0,y:0,vx:0,vy:0,size:80,
+  x:0,y:0,vx:0,vy:0,size:200,
   update(){
     this.x+=this.vx;
     this.y+=this.vy;
