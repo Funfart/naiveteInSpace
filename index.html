@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Naivete&copy; At Space </title>
+<title>Naivete At Space</title>
 
 <style>
 html,body {
   margin:0; padding:0; background:#000;
   display:flex; justify-content:center; align-items:center;
   height:100vh; overflow:hidden;
-  touch-action:none;
 }
 #globeWrapper {
   position:relative;
@@ -18,258 +17,260 @@ html,body {
   aspect-ratio:1/1;
   border-radius:50%;
   overflow:hidden;
-  border:10px solid rgba(255,255,255,0.4);
-  box-shadow:0 0 40px rgba(255,255,255,0.3) inset;
+  border:10px solid rgba(255,255,255,0.3);
 }
 canvas { width:100%; height:100%; display:block; }
 
 #intro {
-  position:absolute;
-  top:0; left:0;
-  width:100%; height:100%;
-  display:flex; justify-content:center; align-items:center;
-  background:#000;
-  z-index:5;
+  position:absolute; width:100%; height:100%;
+  background:#000; z-index:5;
 }
 #intro img {
-  width:100%; height:100%;
-  object-fit:cover;
+  width:100%; height:100%; object-fit:cover;
 }
 </style>
 </head>
 
 <body>
-
 <div id="globeWrapper">
   <canvas id="globeCanvas"></canvas>
-
-  <!-- INTRO SCREEN -->
-  <div id="intro">
-    <img id="introGif">
-  </div>
+  <div id="intro"><img id="introGif"></div>
 </div>
 
 <script>
-// ================= CONFIG =================
-const PARTICLE_COUNT = 0;
-const SWIPE_FORCE = 1.5;
-const ZERO_GRAVITY = 0.0;
+// ===== CONFIG =====
+const IPFS="https://ipfs.io/ipfs/";
+const PARTICLES=50;
 
-// ================= IPFS =================
-const IPFS = "https://ipfs.io/ipfs/";
-
-const CIDS = {
-  bg: "bafybeihdeirhiybfz5yxkd3spiwlzrodxbi7aivkfqbtl3bvdzfopgru2q",
-  intro: "bafybeidohj2juenwic5lt7cy52qnp42wjd26dm7iazvvod5upozntb2gda",
-  obj: "bafybeifxr6c7wc72fassxelyryefnn6qjkzhxs2o6crcvplxfkdor55d5i",
-
-  floaters: [
-    "bafkreiafiitajgilcavkk73fegtp63tybg46bjuflskvngc5huenv7ksyi",
-    "bafkreialn7dtaawuo75gzxv5lsdof7xj3mfydyda2cjalsknv4hayvb4im",
-    "bafkreidbsk5yxasjpgloddhcmcurfyynszfkivnqque53pmvzggtbe2fc4",
-    "bafkreiasqyc6fbscwk3nmmwznkkxjrduvvk4eyepmk5aro4mdaxpe6h5ze"
-  ]
+// ===== CIDS =====
+const CIDS={
+ bg:"bafybeihdeirhiybfz5yxkd3spiwlzrodxbi7aivkfqbtl3bvdzfopgru2q",
+ intro:"bafybeidohj2juenwic5lt7cy52qnp42wjd26dm7iazvvod5upozntb2gda",
+ obj:"bafybeifxr6c7wc72fassxelyryefnn6qjkzhxs2o6crcvplxfkdor55d5i",
+ floaters:[
+  "bafkreiafiitajgilcavkk73fegtp63tybg46bjuflskvngc5huenv7ksyi",
+  "bafkreialn7dtaawuo75gzxv5lsdof7xj3mfydyda2cjalsknv4hayvb4im",
+  "bafkreidbsk5yxasjpgloddhcmcurfyynszfkivnqque53pmvzggtbe2fc4",
+  "bafkreiasqyc6fbscwk3nmmwznkkxjrduvvk4eyepmk5aro4mdaxpe6h5ze"
+ ]
 };
 
-// ================= CANVAS =================
-const canvas = document.getElementById("globeCanvas");
-const ctx = canvas.getContext("2d");
+// ===== CANVAS =====
+const canvas=document.getElementById("globeCanvas");
+const ctx=canvas.getContext("2d");
+let W,H,CX,CY,R;
 
-let W,H,CX,CY,globeRadius;
-
-function resizeCanvas(){
-  W = canvas.clientWidth;
-  H = canvas.clientHeight;
-  canvas.width = W;
-  canvas.height = H;
-
-  CX = W/2;
-  CY = H/2;
-  globeRadius = W/2 - 10;
+function resize(){
+ W=canvas.clientWidth; H=canvas.clientHeight;
+ canvas.width=W; canvas.height=H;
+ CX=W/2; CY=H/2; R=W/2-10;
 }
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize",resize);
 
-// ================= LOAD IMAGES =================
-function loadImg(cid){
-  const img = new Image();
-  img.src = IPFS + cid;
-  return img;
-}
+// ===== LOAD =====
+function img(cid){let i=new Image();i.src=IPFS+cid;return i;}
+const bg=img(CIDS.bg);
+const objImg=img(CIDS.obj);
+const intro=document.getElementById("introGif");
+intro.src=IPFS+CIDS.intro;
+const floaterImgs=CIDS.floaters.map(img);
 
-const bgImg = loadImg(CIDS.bg);
-const objImg = loadImg(CIDS.obj);
-const introImg = document.getElementById("introGif");
-introImg.src = IPFS + CIDS.intro;
-
-const floaterImgs = CIDS.floaters.map(loadImg);
-
-// ================= FLOATERS =================
-class Floater{
-  constructor(img){
-    this.img = img;
-    this.reset();
-  }
-  reset(){
-    let angle = Math.random()*Math.PI*2;
-    let r = Math.random()*globeRadius*0.8;
-    this.x = CX + Math.cos(angle)*r;
-    this.y = CY + Math.sin(angle)*r;
-
-    this.vx = (Math.random()-0.5)*0.5;
-    this.vy = (Math.random()-0.5)*0.5;
-
-    this.size = 30 + Math.random()*40;
-  }
-  update(){
-    this.x += this.vx;
-    this.y += this.vy;
-
-    // bounce inside globe
-    let dx=this.x-CX, dy=this.y-CY;
-    let d=Math.hypot(dx,dy);
-    let max=globeRadius - this.size/2;
-
-    if(d>max){
-      let nx=dx/d, ny=dy/d;
-      this.vx -= 2*(this.vx*nx)*nx;
-      this.vy -= 2*(this.vy*ny)*ny;
-    }
-  }
-  draw(){
-    ctx.drawImage(this.img,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
-  }
-}
-
-let floaters = [];
-
-// ================= PARTICLES =================
-class Particle{
-  constructor(){ this.reset(); }
-  reset(){
-    let a=Math.random()*Math.PI*2;
-    let r=Math.random()*globeRadius;
-    this.x=CX+Math.cos(a)*r;
-    this.y=CY+Math.sin(a)*r;
-    this.vx=(Math.random()-0.5)*0.5;
-    this.vy=(Math.random()-0.5)*0.5;
-    this.size=1+Math.random()*2;
-  }
-  update(){
-    this.x+=this.vx;
-    this.y+=this.vy;
-
-    let dx=this.x-CX, dy=this.y-CY;
-    let d=Math.hypot(dx,dy);
-    if(d>globeRadius){
-      this.vx*=-1;
-      this.vy*=-1;
-    }
-  }
-  draw(){
-    ctx.fillStyle="#fff";
-    ctx.beginPath();
-    ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-
-let particles = [];
-
-// ================= OBJECT =================
-let obj = {
-  x:0,y:0,vx:0,vy:0,size:200,
-  update(){
-    this.x+=this.vx;
-    this.y+=this.vy;
-
-    let dx=this.x-CX, dy=this.y-CY;
-    let d=Math.hypot(dx,dy);
-    let max=globeRadius - this.size/2;
-
-    if(d>max){
-      let nx=dx/d, ny=dy/d;
-      this.vx -= 2*(this.vx*nx)*nx;
-      this.vy -= 2*(this.vy*ny)*ny;
-    }
-
-    this.vx*=0.99;
-    this.vy*=0.99;
-  },
-  draw(){
-    ctx.drawImage(objImg,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
-  }
-};
-
-// ================= INTERACTION =================
-canvas.addEventListener("pointermove", e=>{
-  if(e.buttons){
-    let dx=(Math.random()-0.5)*SWIPE_FORCE;
-    let dy=(Math.random()-0.5)*SWIPE_FORCE;
-
-    obj.vx+=dx;
-    obj.vy+=dy;
-
-    particles.forEach(p=>{
-      p.vx+=dx;
-      p.vy+=dy;
-    });
-  }
+// ===== GRAVITY WELLS =====
+let wells=[];
+canvas.addEventListener("pointerdown",e=>{
+ let rect=canvas.getBoundingClientRect();
+ wells.push({
+  x:e.clientX-rect.left,
+  y:e.clientY-rect.top,
+  strength:2,
+  life:1
+ });
 });
 
-// ================= LOOP =================
-function loop(){
-  ctx.clearRect(0,0,W,H);
+// ===== FLOATERS (PARALLAX) =====
+class Floater{
+ constructor(img,depth){
+  this.img=img;
+  this.depth=depth; // 0.3 back, 1 front
+  this.reset();
+ }
+ reset(){
+  let a=Math.random()*Math.PI*2;
+  let r=Math.random()*R;
+  this.x=CX+Math.cos(a)*r;
+  this.y=CY+Math.sin(a)*r;
+  this.vx=(Math.random()-0.5)*0.4*this.depth;
+  this.vy=(Math.random()-0.5)*0.4*this.depth;
+  this.size=(30+Math.random()*40)*this.depth;
+ }
+ update(){
+  // gravity wells
+  wells.forEach(w=>{
+   let dx=w.x-this.x, dy=w.y-this.y;
+   let d=Math.hypot(dx,dy)+0.1;
+   let f=w.strength/d;
+   this.vx+=dx/d*f;
+   this.vy+=dy/d*f;
+  });
 
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(CX,CY,globeRadius,0,Math.PI*2);
-  ctx.clip();
+  this.x+=this.vx;
+  this.y+=this.vy;
 
-  // BG
-  ctx.drawImage(bgImg,0,0,W,H);
-
-  // FLOATERS (behind)
-  floaters.forEach(f=>{ f.update(); f.draw(); });
-
-  // OBJECT
-  obj.update();
-  obj.draw();
-
-  // PARTICLES
-  particles.forEach(p=>{ p.update(); p.draw(); });
-
-  ctx.restore();
-
-  requestAnimationFrame(loop);
-}
-
-// ================= INIT =================
-function init(){
-  resizeCanvas();
-
-  obj.x=CX;
-  obj.y=CY;
-
-  particles = [];
-  for(let i=0;i<PARTICLE_COUNT;i++) particles.push(new Particle());
-
-  floaters = [];
-  for(let i=0;i<6;i++){
-    let img = floaterImgs[Math.floor(Math.random()*floaterImgs.length)];
-    floaters.push(new Floater(img));
+  // boundary
+  let dx=this.x-CX, dy=this.y-CY;
+  let d=Math.hypot(dx,dy);
+  let max=R-this.size/2;
+  if(d>max){
+   let nx=dx/d, ny=dy/d;
+   this.vx-=2*(this.vx*nx)*nx;
+   this.vy-=2*(this.vy*ny)*ny;
   }
 
-  loop();
+  this.vx*=0.995;
+  this.vy*=0.995;
+ }
+ draw(){
+  ctx.globalAlpha=0.6+this.depth*0.4;
+  ctx.drawImage(this.img,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+  ctx.globalAlpha=1;
+ }
 }
 
-// ================= INTRO =================
-window.onload = ()=>{
-  setTimeout(()=>{
-    document.getElementById("intro").style.display="none";
-    init();
-  },3000);
+// ===== PARTICLES =====
+class Particle{
+ constructor(){this.reset();}
+ reset(){
+  let a=Math.random()*Math.PI*2;
+  let r=Math.random()*R;
+  this.x=CX+Math.cos(a)*r;
+  this.y=CY+Math.sin(a)*r;
+  this.vx=(Math.random()-0.5)*0.6;
+  this.vy=(Math.random()-0.5)*0.6;
+ }
+ update(){
+  wells.forEach(w=>{
+   let dx=w.x-this.x, dy=w.y-this.y;
+   let d=Math.hypot(dx,dy)+0.1;
+   let f=1.5/d;
+   this.vx+=dx/d*f;
+   this.vy+=dy/d*f;
+  });
+
+  this.x+=this.vx;
+  this.y+=this.vy;
+
+  let dx=this.x-CX, dy=this.y-CY;
+  if(Math.hypot(dx,dy)>R){
+   this.vx*=-1; this.vy*=-1;
+  }
+
+  this.vx*=0.99; this.vy*=0.99;
+ }
+ draw(){
+  ctx.fillStyle="#fff";
+  ctx.beginPath();
+  ctx.arc(this.x,this.y,1.5,0,Math.PI*2);
+  ctx.fill();
+ }
+}
+
+// ===== MAIN OBJECT =====
+let obj={
+ x:0,y:0,vx:0.3,vy:-0.2,size:80,
+ update(){
+  wells.forEach(w=>{
+   let dx=w.x-this.x, dy=w.y-this.y;
+   let d=Math.hypot(dx,dy)+0.1;
+   let f=2/d;
+   this.vx+=dx/d*f;
+   this.vy+=dy/d*f;
+  });
+
+  this.x+=this.vx;
+  this.y+=this.vy;
+
+  let dx=this.x-CX, dy=this.y-CY;
+  let d=Math.hypot(dx,dy);
+  let max=R-this.size/2;
+
+  if(d>max){
+   let nx=dx/d, ny=dy/d;
+   this.vx-=2*(this.vx*nx)*nx;
+   this.vy-=2*(this.vy*ny)*ny;
+  }
+
+  this.vx*=0.995;
+  this.vy*=0.995;
+ },
+ draw(){
+  ctx.drawImage(objImg,this.x-this.size/2,this.y-this.size/2,this.size,this.size);
+ }
+};
+
+// ===== NEBULA =====
+function drawNebula(){
+ let g=ctx.createRadialGradient(CX,CY,10,CX,CY,R);
+ g.addColorStop(0,"rgba(100,0,200,0.15)");
+ g.addColorStop(1,"rgba(0,0,0,0)");
+ ctx.fillStyle=g;
+ ctx.fillRect(0,0,W,H);
+}
+
+// ===== INIT =====
+let floaters=[],particles=[];
+function init(){
+ resize();
+
+ obj.x=CX; obj.y=CY;
+
+ // parallax layers
+ for(let i=0;i<8;i++){
+  floaters.push(new Floater(floaterImgs[i%4],0.4)); // back
+  floaters.push(new Floater(floaterImgs[i%4],0.7)); // mid
+  floaters.push(new Floater(floaterImgs[i%4],1.1)); // front
+ }
+
+ for(let i=0;i<PARTICLES;i++) particles.push(new Particle());
+
+ loop();
+}
+
+// ===== LOOP =====
+function loop(){
+ ctx.clearRect(0,0,W,H);
+
+ ctx.save();
+ ctx.beginPath();
+ ctx.arc(CX,CY,R,0,Math.PI*2);
+ ctx.clip();
+
+ ctx.drawImage(bg,0,0,W,H);
+
+ // parallax
+ floaters.sort((a,b)=>a.depth-b.depth);
+ floaters.forEach(f=>{f.update();f.draw();});
+
+ obj.update(); obj.draw();
+ particles.forEach(p=>{p.update();p.draw();});
+
+ drawNebula();
+
+ ctx.restore();
+
+ // fade wells
+ wells.forEach(w=>w.life-=0.01);
+ wells=wells.filter(w=>w.life>0);
+
+ requestAnimationFrame(loop);
+}
+
+// ===== INTRO =====
+window.onload=()=>{
+ setTimeout(()=>{
+  document.getElementById("intro").style.display="none";
+  init();
+ },3000);
 };
 </script>
-
 </body>
 </html>
