@@ -154,23 +154,21 @@ async function startIntro(){
 }
 
 /* ================= GALAXY INFLUENCE ================= */
-function galaxyInfluence(o, strength=1){
-  let dx=o.x-CX, dy=o.y-CY;
-  let d=Math.hypot(dx,dy)+0.001;
+function galaxyInfluence(o){
+ let dx=o.x-CX, dy=o.y-CY;
+ let d=Math.hypot(dx,dy)+0.1;
 
-  // ONLY tangential swirl (no radial pull = no clustering)
-  let tx = -dy/d;
-  let ty = dx/d;
+ // soft slow (never stops)
+ let slow = 0.0002 * d;
+ o.vx *= (1 - slow);
+ o.vy *= (1 - slow);
 
-  let swirl = 0.003 * strength;
-
-  o.vx += tx * swirl;
-  o.vy += ty * swirl;
-
-  // very soft damping (prevents runaway but NOT freezing)
-  o.vx *= (1 - 0.0005);
-  o.vy *= (1 - 0.0005);
+ // swirl
+ let tx = -dy/d, ty = dx/d;
+ o.vx += tx * 0.003;
+ o.vy += ty * 0.003;
 }
+
 /* ================= WELLS ================= */
 let wells=[];
 canvas.addEventListener("pointerdown",e=>{
@@ -213,44 +211,30 @@ class Floater{
   this.vx=(Math.random()-0.5)*2;
   this.vy=(Math.random()-0.5)*2;
   this.size=(30+Math.random()*40)*this.depth;
- }update(){
+ }
+ update(){
   wells.forEach(w=>applyOrbit(this,w));
+  galaxyInfluence(this);
 
-  // weaker galaxy influence than obj
-  galaxyInfluence(this, 0.35);
+  // constant drift injection
+  this.vx+=Math.sin(time+this.x*0.01)*0.02*this.depth;
+  this.vy+=Math.cos(time+this.y*0.01)*0.02*this.depth;
 
-  // constant motion injection (prevents stalling)
-  this.vx += Math.sin(time*0.8 + this.y*0.01) * 0.03;
-  this.vy += Math.cos(time*0.8 + this.x*0.01) * 0.03;
+  this.x+=this.vx;
+  this.y+=this.vy;
 
-  this.x += this.vx;
-  this.y += this.vy;
-
-  // border bounce with RANDOMIZED rebound (prevents clustering)
   let dx=this.x-CX, dy=this.y-CY;
   let d=Math.hypot(dx,dy);
   let max=R-this.size/2;
 
   if(d>max){
     let nx=dx/d, ny=dy/d;
-
     this.x = CX + nx*max;
     this.y = CY + ny*max;
-
     let dot=this.vx*nx + this.vy*ny;
-
-    // reflect + chaos injection
     this.vx -= 2*dot*nx;
     this.vy -= 2*dot*ny;
-
-    this.vx += (Math.random()-0.5)*1.2;
-    this.vy += (Math.random()-0.5)*1.2;
   }
-
-  // mild damping (not freezing)
-  this.vx *= 0.997;
-  this.vy *= 0.997;
-}
  }
  draw(){
   ctx.globalAlpha=0.4+this.depth*0.6;
@@ -269,37 +253,26 @@ class Particle{
   this.y=CY+Math.sin(a)*r;
   this.vx=(Math.random()-0.5)*2;
   this.vy=(Math.random()-0.5)*2;
- }update(){
+ }
+ update(){
   wells.forEach(w=>applyOrbit(this,w));
+  galaxyInfluence(this);
 
-  galaxyInfluence(this, 0.5);
+  this.vx+=Math.sin(time+this.x*0.02)*0.02;
+  this.vy+=Math.cos(time+this.y*0.02)*0.02;
 
-  this.vx += Math.sin(time + this.x*0.02) * 0.02;
-  this.vy += Math.cos(time + this.y*0.02) * 0.02;
+  this.x+=this.vx;
+  this.y+=this.vy;
 
-  this.x += this.vx;
-  this.y += this.vy;
-
-  let dx=this.x-CX, dy=this.y-CY;
-  let d=Math.hypot(dx,dy);
-
-  if(d>R){
-    let nx=dx/d, ny=dy/d;
-
-    this.x = CX + nx*R;
-    this.y = CY + ny*R;
-
-    this.vx *= -1;
-    this.vy *= -1;
-
-    // anti-cluster jitter
-    this.vx += (Math.random()-0.5)*0.8;
-    this.vy += (Math.random()-0.5)*0.8;
+  if(Math.hypot(this.x-CX,this.y-CY)>R){
+   this.vx*=-1;
+   this.vy*=-1;
   }
-
-  this.vx *= 0.998;
-  this.vy *= 0.998;
-}
+ }
+ draw(){
+  ctx.fillStyle="#fff";
+  ctx.fillRect(this.x,this.y,2,2);
+ }
 }
 
 /* ================= OBJECT ================= */
